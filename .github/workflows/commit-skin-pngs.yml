@@ -1,0 +1,33 @@
+name: commit-skin-pngs
+on:
+  workflow_dispatch:
+jobs:
+  decode:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/checkout@v4
+      - name: Decode base64 PNGs and commit
+        run: |
+          set -euo pipefail
+          python3 <<'PY'
+          import base64, pathlib
+          root = pathlib.Path("assets/skin/v1")
+          written = []
+          for p in sorted(root.glob("*.png.b64")):
+              out = pathlib.Path(str(p)[:-4])  # remove .b64
+              data = base64.b64decode(p.read_text().strip())
+              if data[:4] != b"\x89PNG":
+                  raise SystemExit(f"bad magic {p}")
+              out.write_bytes(data)
+              written.append(str(out))
+              print("wrote", out, len(data))
+          if not written:
+              raise SystemExit("no png.b64 files found")
+          PY
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add 'assets/skin/v1/*.png'
+          git status
+          if git diff --cached --quiet; then echo "no png changes"; else git commit -m "feat: decode assets/skin/v1 PNGs from base64 companions" && git push; fi
