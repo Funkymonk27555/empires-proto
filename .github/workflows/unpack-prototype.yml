@@ -11,19 +11,18 @@ jobs:
       - name: Assemble tgz, extract, commit
         run: |
           set -euo pipefail
-          n=$(cat .push-staging/PARTS.txt | tr -d '[:space:]')
           : > /tmp/proto.b64
-          for i in $(seq 0 $((n-1))); do
-            printf '%s' "$(cat .push-staging/part_$(printf '%03d' $i).b64)" >> /tmp/proto.b64
-          done
+          while IFS= read -r name; do
+            [ -z "$name" ] && continue
+            printf '%s' "$(tr -d '\n\r' < .push-staging/$name)" >> /tmp/proto.b64
+          done < .push-staging/FILELIST.txt
           base64 -d /tmp/proto.b64 > /tmp/proto.tgz
-          tar -tzf /tmp/proto.tgz | head
           tar -xzf /tmp/proto.tgz
           rm -rf .push-staging
           rm -f probe_encoding.txt probe.png probe2.png
           git config user.name "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
           git add -A
-          git status
+          git status --short | head -50
           git commit -m "feat: Empires offline-full + visual skin v1 (HTML+Godot+assets)" || echo "nothing"
           git push
